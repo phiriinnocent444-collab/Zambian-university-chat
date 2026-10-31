@@ -1,0 +1,6 @@
+{
+  "name": "ZedWhisper - Zambian Universities Buzz & Campus Network",
+  "description": "Secure anonymous campus gossiping, student updates, news, campus crush encounters, and hostel banter for all Zambian universities including UNZA, CBU, Mulungushi, Cavendish, and Evelyn Hone.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

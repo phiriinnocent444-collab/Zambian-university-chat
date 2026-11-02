@@ -156,4 +156,42 @@ export interface CurrentUser {
   treatsSentCount: number;
   secretCrushesSubmitted: string[];
   bookmarkedPostIds: string[];
+  whatsAppRelay?: WhatsAppRelayConfig;
 }
+
+export interface CampusLocation {
+  id: string;
+  name: string;
+  university: UniversityId;
+  campusBranch: string;
+  category: 'hotspot' | 'hostel' | 'library' | 'sports' | 'food' | 'admin';
+  lat: number;
+  lng: number;
+  description: string;
+  popularWhisper?: string;
+  wiFiStatus?: string;
+}
+
+export interface CampusEvent {
+  id: string;
+  title: string;
+  university: UniversityId;
+  category: 'sports' | 'social' | 'academic' | 'financial' | 'guild';
+  venue: string;
+  locationCoords?: { lat: number; lng: number };
+  date: string;
+  time: string;
+  description: string;
+  attendeesCount: number;
+  isUserRsvp?: boolean;
+  organizer: string;
+}
+
+export interface WhatsAppRelayConfig {
+  enabled: boolean;
+  carrier: 'Airtel Zambia' | 'MTN Zambia' | 'Zamtel' | 'Other';
+  privacyProtection: boolean;
+  relayToken: string;
+  customGreeting?: string;
+}
+

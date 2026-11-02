@@ -22,6 +22,7 @@ interface StudentProfileModalProps {
   currentUser: CurrentUser;
   onToggleGhostMode: () => void;
   onClearSession: () => void;
+  onOpenQrModal?: () => void;
 }
 
 export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
@@ -30,6 +31,7 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
   currentUser,
   onToggleGhostMode,
   onClearSession,
+  onOpenQrModal,
 }) => {
   if (!isOpen) return null;
 
@@ -109,6 +111,25 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
             </button>
           </div>
         </div>
+
+        {/* Campus QR & WhatsApp Gateway Button */}
+        {onOpenQrModal && (
+          <button
+            onClick={() => {
+              onClose();
+              onOpenQrModal();
+            }}
+            className="w-full py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold text-xs flex items-center justify-between shadow-sm cursor-pointer transition-all"
+          >
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-emerald-200" />
+              <span>Show My Campus Social QR Code</span>
+            </div>
+            <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-md">
+              WhatsApp Shield Active
+            </span>
+          </button>
+        )}
 
         {/* Student Activity & Karma Stats */}
         <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 space-y-3">

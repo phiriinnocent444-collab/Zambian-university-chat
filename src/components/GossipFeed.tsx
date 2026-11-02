@@ -62,24 +62,30 @@ export const GossipFeed: React.FC<GossipFeedProps> = ({
 
   if (posts.length === 0) {
     return (
-      <div className="py-16 text-center bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 p-8">
-        <Ghost className="w-12 h-12 text-slate-400 mx-auto mb-3" />
-        <h3 className="text-base font-semibold text-slate-900 dark:text-white mb-1">
-          No campus whispers found here yet
+      <div className="py-16 text-center bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 p-8 shadow-xs">
+        <div className="w-14 h-14 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto mb-4 border border-emerald-200 dark:border-emerald-800/60">
+          <MessageCircle className="w-7 h-7" />
+        </div>
+        <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">
+          Campus Feed is Blank & Ready
         </h3>
-        <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto mb-5">
-          Be the first student to spill the tea, share campus news, or drop an anonymous confession.
+        <p className="text-sm text-slate-600 dark:text-slate-300 max-w-md mx-auto mb-2">
+          All postings come directly from actual Zambian students. No pre-seeded or artificial gossip.
+        </p>
+        <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto mb-6">
+          Be the first student from UNZA, CBU, NIPA, Mulungushi, Cavendish, or any campus to spill a whisper, share news, report lost items, or drop banter.
         </p>
         <button
           onClick={onOpenComposer}
-          className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm transition-all"
+          className="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-md shadow-emerald-600/20 hover:scale-102 transition-all cursor-pointer"
         >
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>Spill First Tea</span>
+          <Sparkles className="w-4 h-4" />
+          <span>Post First Campus Whisper</span>
         </button>
       </div>
     );
   }
+
 
   return (
     <div className="space-y-4">

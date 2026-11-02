@@ -31,11 +31,34 @@ import { CampusPolls } from './components/CampusPolls';
 import { DirectMessages } from './components/DirectMessages';
 import { StudentProfileModal } from './components/StudentProfileModal';
 import { SafetyGuidelinesModal } from './components/SafetyGuidelinesModal';
-import { Flame, ShieldCheck, Heart, Sparkles, Check, Bell } from 'lucide-react';
+import { SupabaseModal } from './components/SupabaseModal';
+import { StudentQrModal } from './components/StudentQrModal';
+import { CampusGoogleMap } from './components/CampusGoogleMap';
+import { CampusEventCalendar } from './components/CampusEventCalendar';
+import {
+  supabase,
+  checkSupabaseHealth,
+  fetchSupabasePosts,
+  fetchSupabaseComments,
+  createSupabasePost,
+  voteSupabasePost,
+  addSupabaseComment,
+  sendSupabaseDirectMessage,
+  submitSupabaseReport,
+  getLiveBroadcastChannel,
+  broadcastNewPost,
+  broadcastPostVote,
+  broadcastNewComment,
+  broadcastDirectMessage,
+  SupabaseHealth,
+} from './lib/supabase';
+import { Flame, ShieldCheck, Heart, Sparkles, Check, Bell, Database } from 'lucide-react';
 
 export default function App() {
   // Navigation State
-  const [activeTab, setActiveTab] = useState<'feed' | 'dating' | 'secret_crush' | 'polls' | 'messages'>('feed');
+  const [activeTab, setActiveTab] = useState<
+    'feed' | 'dating' | 'secret_crush' | 'polls' | 'messages' | 'map' | 'calendar'
+  >('feed');
 
   // University & Category Filter States
   const [selectedUniversity, setSelectedUniversity] = useState<UniversityId>('all');
@@ -46,8 +69,27 @@ export default function App() {
   // Application Data States
   const [posts, setPosts] = useState<GossipPost[]>(() => {
     const saved = localStorage.getItem('zedwhisper_posts');
-    return saved ? JSON.parse(saved) : INITIAL_POSTS;
+    if (saved) {
+      try {
+        const parsed: GossipPost[] = JSON.parse(saved);
+        // Only keep genuine posts submitted during this or previous live sessions,
+        // purging any legacy mock demo IDs so the postings board starts completely blank
+        return parsed.filter(
+          (p) =>
+            !p.id.startsWith('post-seed-') &&
+            !p.id.startsWith('post-sports-') &&
+            !p.id.startsWith('post-event-') &&
+            !p.id.startsWith('post-lost-') &&
+            !p.id.startsWith('post-nipa-') &&
+            !['post-1', 'post-2', 'post-3', 'post-4', 'post-5', 'post-6', 'post-7', 'post-8'].includes(p.id)
+        );
+      } catch {
+        return [];
+      }
+    }
+    return INITIAL_POSTS;
   });
+
 
   const [profiles, setProfiles] = useState<StudentProfile[]>(() => {
     const saved = localStorage.getItem('zedwhisper_profiles');
@@ -77,6 +119,17 @@ export default function App() {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isSafetyModalOpen, setIsSafetyModalOpen] = useState(false);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+  const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState(false);
+  const [isQrModalOpen, setIsQrModalOpen] = useState(false);
+  const [isGmpQuotaExceeded, setIsGmpQuotaExceeded] = useState(false);
+  const [presetVenue, setPresetVenue] = useState<{ name: string; university: UniversityId } | null>(null);
+
+  const [supabaseHealth, setSupabaseHealth] = useState<SupabaseHealth>({
+    connected: true,
+    tableReady: false,
+    url: 'https://rflxrnpmmnkwnfgwldma.supabase.co',
+    projectRef: 'rflxrnpmmnkwnfgwldma',
+  });
 
   // Notification Toast State
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -85,6 +138,212 @@ export default function App() {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
   };
+
+  // Check Supabase connectivity and initial load
+  const refreshSupabase = async () => {
+    const health = await checkSupabaseHealth();
+    setSupabaseHealth(health);
+    if (health.tableReady) {
+      const remotePosts = await fetchSupabasePosts();
+      if (remotePosts && remotePosts.length > 0) {
+        setPosts(remotePosts);
+      }
+    }
+  };
+
+  useEffect(() => {
+    refreshSupabase();
+
+    // Check for discreet admin trigger in URL: ?admin=true or ?db=true or #admin
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('admin') === 'true' || params.get('db') === 'true' || window.location.hash === '#admin') {
+        setIsSupabaseModalOpen(true);
+      }
+    }
+
+    // 1. Supabase Realtime Broadcast Channel: Instant sub-50ms peer-to-peer sync across all phones
+    const broadcastChannel = getLiveBroadcastChannel();
+
+    broadcastChannel
+      .on('broadcast', { event: 'new_post' }, ({ payload }: { payload: GossipPost }) => {
+        if (!payload || !payload.id) return;
+        setPosts((prev) => {
+          if (prev.some((p) => p.id === payload.id)) return prev;
+          showToast(`🔥 New whisper dropped from ${payload.university.toUpperCase()}!`);
+          return [payload, ...prev];
+        });
+      })
+      .on('broadcast', { event: 'post_voted' }, ({ payload }: { payload: { postId: string; upvotes: number; downvotes: number } }) => {
+        if (!payload || !payload.postId) return;
+        setPosts((prev) =>
+          prev.map((p) =>
+            p.id === payload.postId
+              ? { ...p, upvotes: payload.upvotes, downvotes: payload.downvotes }
+              : p
+          )
+        );
+      })
+      .on('broadcast', { event: 'new_comment' }, ({ payload }: { payload: { postId: string; comment: any } }) => {
+        if (!payload || !payload.postId || !payload.comment) return;
+        setPosts((prev) =>
+          prev.map((p) => {
+            if (p.id !== payload.postId) return p;
+            if (p.comments.some((c) => c.id === payload.comment.id)) return p;
+            return {
+              ...p,
+              commentsCount: p.commentsCount + 1,
+              comments: [...p.comments, payload.comment],
+            };
+          })
+        );
+        setSelectedPostForDetail((prev) => {
+          if (!prev || prev.id !== payload.postId) return prev;
+          if (prev.comments.some((c) => c.id === payload.comment.id)) return prev;
+          return {
+            ...prev,
+            commentsCount: prev.commentsCount + 1,
+            comments: [...prev.comments, payload.comment],
+          };
+        });
+      })
+      .on('broadcast', { event: 'new_message' }, ({ payload }: { payload: { message: any; recipientId: string } }) => {
+        if (!payload || !payload.message) return;
+        const msg = payload.message;
+        setConversations((prev) =>
+          prev.map((c) => {
+            if (c.id === msg.conversationId || c.partnerId === msg.senderId) {
+              if (c.messages.some((m) => m.id === msg.id)) return c;
+              return {
+                ...c,
+                lastMessage: msg.text,
+                lastTimestamp: 'Just now',
+                messages: [...c.messages, msg],
+              };
+            }
+            return c;
+          })
+        );
+      });
+
+    // 2. Supabase Realtime Postgres Changes: Database row level sync
+    const postsChannel = supabase
+      .channel('public:posts')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'posts' },
+        (payload: any) => {
+          const row = payload.new;
+          if (!row) return;
+          const mappedPost: GossipPost = {
+            id: row.id,
+            title: row.title,
+            content: row.content,
+            university: row.university as UniversityId,
+            campusBranch: row.campus_branch || 'Main Campus',
+            category: row.category as PostCategory,
+            authorAlias: row.author_alias,
+            isAnonymous: row.is_anonymous ?? true,
+            isSpoilerTea: row.is_spoiler_tea ?? false,
+            eventVenue: row.event_venue,
+            eventDate: row.event_date,
+            isActivityLive: row.is_activity_live ?? false,
+            upvotes: row.upvotes ?? 0,
+            downvotes: row.downvotes ?? 0,
+            commentsCount: row.comments_count ?? 0,
+            comments: [],
+            timestamp: 'Just now',
+            tags: row.tags || [],
+          };
+          setPosts((prev) => {
+            if (prev.some((p) => p.id === mappedPost.id)) return prev;
+            return [mappedPost, ...prev];
+          });
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'posts' },
+        (payload: any) => {
+          const row = payload.new;
+          if (!row) return;
+          setPosts((prev) =>
+            prev.map((p) =>
+              p.id === row.id
+                ? {
+                    ...p,
+                    upvotes: row.upvotes ?? p.upvotes,
+                    downvotes: row.downvotes ?? p.downvotes,
+                    commentsCount: row.comments_count ?? p.commentsCount,
+                  }
+                : p
+            )
+          );
+        }
+      )
+      .subscribe();
+
+    // Direct whispers sync
+    const messagesChannel = supabase
+      .channel('public:messages')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages' },
+        (payload: any) => {
+          const row = payload.new;
+          if (!row) return;
+          const newMsg = {
+            id: row.id,
+            conversationId: row.conversation_id,
+            senderId: row.sender_id,
+            senderAlias: row.sender_alias,
+            isSenderGhost: row.is_sender_ghost ?? false,
+            text: row.text,
+            timestamp: 'Just now',
+          };
+          setConversations((prev) =>
+            prev.map((c) => {
+              if (c.id === row.conversation_id || c.partnerId === row.sender_id) {
+                if (c.messages.some((m) => m.id === newMsg.id)) return c;
+                return {
+                  ...c,
+                  lastMessage: newMsg.text,
+                  lastTimestamp: 'Just now',
+                  messages: [...c.messages, newMsg],
+                };
+              }
+              return c;
+            })
+          );
+        }
+      )
+      .subscribe();
+
+    // Refresh when user returns to phone tab
+    const handleVisibilityChange = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        refreshSupabase();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Google Maps Demo Key Quota Defense listener
+    const handleGmpQuota = () => {
+      setIsGmpQuotaExceeded(true);
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('gmp-quota-exceeded', handleGmpQuota);
+    }
+
+    return () => {
+      supabase.removeChannel(postsChannel);
+      supabase.removeChannel(messagesChannel);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('gmp-quota-exceeded', handleGmpQuota);
+      }
+    };
+  }, []);
 
   // LocalStorage sync
   useEffect(() => {
@@ -116,42 +375,73 @@ export default function App() {
     return b.upvotes - a.upvotes;
   });
 
+  // Dynamic trending hashtags computed entirely from real student posts
+  const trendingTags = React.useMemo(() => {
+    const tagCountMap: Record<string, number> = {};
+    posts.forEach((p) => {
+      p.tags?.forEach((tag) => {
+        const normalized = tag.startsWith('#') ? tag : `#${tag}`;
+        tagCountMap[normalized] = (tagCountMap[normalized] || 0) + 1;
+      });
+    });
+    return Object.entries(tagCountMap)
+      .map(([tag, count]) => ({ tag, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+  }, [posts]);
+
   // Total unread messages count
   const unreadCount = conversations.reduce((acc, c) => acc + c.unreadCount, 0);
 
+
   // Handlers for Posts & Voting
   const handleVotePost = (postId: string, direction: 'up' | 'down') => {
+    let finalUp = 0;
+    let finalDown = 0;
+
     setPosts((prev) =>
       prev.map((post) => {
         if (post.id !== postId) return post;
         if (post.userVoted === direction) {
           // toggle off
+          const u = direction === 'up' ? post.upvotes - 1 : post.upvotes;
+          const d = direction === 'down' ? post.downvotes - 1 : post.downvotes;
+          finalUp = Math.max(0, u);
+          finalDown = Math.max(0, d);
           return {
             ...post,
             userVoted: undefined,
-            upvotes: direction === 'up' ? post.upvotes - 1 : post.upvotes,
-            downvotes: direction === 'down' ? post.downvotes - 1 : post.downvotes,
+            upvotes: finalUp,
+            downvotes: finalDown,
           };
         }
         const prevVote = post.userVoted;
+        const u = direction === 'up'
+          ? post.upvotes + 1
+          : prevVote === 'up'
+          ? post.upvotes - 1
+          : post.upvotes;
+        const d = direction === 'down'
+          ? post.downvotes + 1
+          : prevVote === 'down'
+          ? post.downvotes - 1
+          : post.downvotes;
+        finalUp = Math.max(0, u);
+        finalDown = Math.max(0, d);
         return {
           ...post,
           userVoted: direction,
-          upvotes:
-            direction === 'up'
-              ? post.upvotes + 1
-              : prevVote === 'up'
-              ? post.upvotes - 1
-              : post.upvotes,
-          downvotes:
-            direction === 'down'
-              ? post.downvotes + 1
-              : prevVote === 'down'
-              ? post.downvotes - 1
-              : post.downvotes,
+          upvotes: finalUp,
+          downvotes: finalDown,
         };
       })
     );
+
+    // Broadcast live vote to all connected phones across Zambia
+    broadcastPostVote(postId, finalUp, finalDown);
+
+    // Sync vote to Supabase
+    voteSupabasePost(postId, finalUp, finalDown);
 
     // Also update modal view if open
     if (selectedPostForDetail && selectedPostForDetail.id === postId) {
@@ -173,6 +463,30 @@ export default function App() {
     }
   };
 
+  // Open post detail and fetch latest remote comments
+  const handleOpenPostDetail = async (post: GossipPost) => {
+    setSelectedPostForDetail(post);
+    try {
+      const remoteComments = await fetchSupabaseComments(post.id);
+      if (remoteComments && remoteComments.length > 0) {
+        setSelectedPostForDetail((prev) =>
+          prev && prev.id === post.id
+            ? { ...prev, comments: remoteComments, commentsCount: Math.max(prev.commentsCount, remoteComments.length) }
+            : prev
+        );
+        setPosts((prev) =>
+          prev.map((p) =>
+            p.id === post.id
+              ? { ...p, comments: remoteComments, commentsCount: Math.max(p.commentsCount, remoteComments.length) }
+              : p
+          )
+        );
+      }
+    } catch {
+      // Graceful local state retention
+    }
+  };
+
   const handleBookmark = (postId: string) => {
     const isBookmarked = currentUser.bookmarkedPostIds.includes(postId);
     const updated = isBookmarked
@@ -184,6 +498,7 @@ export default function App() {
   };
 
   const handleReport = (postId: string) => {
+    submitSupabaseReport(currentUser.id, postId, 'post', 'Policy safety review');
     showToast('Report submitted for moderation review. Thank you for keeping campus safe.');
   };
 
@@ -227,6 +542,10 @@ export default function App() {
     };
 
     setPosts([newPost, ...posts]);
+    // Instant peer broadcast to all online phones across Zambia
+    broadcastNewPost(newPost);
+    // Save to central Supabase cloud database
+    createSupabasePost(newPost);
     showToast('Campus activity update published! 📢');
   };
 
@@ -245,6 +564,11 @@ export default function App() {
       upvotes: 0,
       timestamp: 'Just now',
     };
+
+    const targetPost = posts.find((p) => p.id === postId);
+    addSupabaseComment(newComment, targetPost ? targetPost.commentsCount : 0);
+    // Instant broadcast of new comment to all devices
+    broadcastNewComment(postId, newComment);
 
     setPosts((prev) =>
       prev.map((p) => {
@@ -455,6 +779,12 @@ export default function App() {
       timestamp: 'Just now',
     };
 
+    const activeConv = conversations.find((c) => c.id === conversationId);
+    if (activeConv) {
+      sendSupabaseDirectMessage(newMessage, activeConv.partnerId);
+      broadcastDirectMessage(newMessage, activeConv.partnerId);
+    }
+
     setConversations((prev) =>
       prev.map((c) => {
         if (c.id !== conversationId) return c;
@@ -485,8 +815,40 @@ export default function App() {
     showToast('Session wiped and reset for security.');
   };
 
+  const handleOpenComposerWithVenue = (venueName: string, university: UniversityId) => {
+    setSelectedUniversity(university);
+    setPresetVenue({ name: venueName, university });
+    setIsComposerOpen(true);
+  };
+
+  const handleViewVenueOnMap = (venueName: string, university: UniversityId) => {
+    if (university !== 'all') {
+      setSelectedUniversity(university);
+    }
+    setActiveTab('map');
+    showToast(`Viewing ${venueName} on Campus Google Map 📍`);
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors">
+      {/* Google Maps Demo Key Quota Defense Banner */}
+      {isGmpQuotaExceeded && (
+        <div className="bg-amber-50 border-b border-amber-200 text-amber-900 px-4 py-2.5 text-xs md:text-sm text-center sticky top-0 z-50 shadow-sm">
+          <span>
+            Google Maps Platform quota reached. If you are the app owner, visit{' '}
+            <a
+              href="https://developers.google.com/maps/ai/ai-studio?utm_campaign=gmp_mcp_codeassist_v1_aistudio#quota_exceeded_errors"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline font-semibold text-amber-950 hover:text-amber-800"
+            >
+              maps developer site
+            </a>{' '}
+            for instructions to update your account.
+          </span>
+        </div>
+      )}
+
       {/* Toast Notification Banner */}
       {toastMessage && (
         <div className="fixed top-18 right-4 z-50 bg-slate-900 text-white dark:bg-emerald-600 px-4 py-2.5 rounded-xl shadow-lg text-xs font-semibold flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
@@ -500,15 +862,21 @@ export default function App() {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         currentUser={currentUser}
-        onOpenComposer={() => setIsComposerOpen(true)}
+        onOpenComposer={() => {
+          setPresetVenue(null);
+          setIsComposerOpen(true);
+        }}
         onOpenProfile={() => setIsProfileModalOpen(true)}
         onOpenSafety={() => setIsSafetyModalOpen(true)}
         onToggleGhostMode={handleToggleGhostMode}
+        onOpenQrModal={() => setIsQrModalOpen(true)}
         unreadCount={unreadCount}
+        onOpenSupabase={() => setIsSupabaseModalOpen(true)}
+        isSupabaseReady={supabaseHealth.tableReady}
       />
 
-      {/* University Campus Hub Selector (Always available in Buzz and Encounters) */}
-      {(activeTab === 'feed' || activeTab === 'dating') && (
+      {/* University Campus Hub Selector (Available in Buzz, Encounters, Map & Calendar) */}
+      {(activeTab === 'feed' || activeTab === 'dating' || activeTab === 'map' || activeTab === 'calendar') && (
         <UniversityFilterBar
           selectedUniversity={selectedUniversity}
           onSelectUniversity={setSelectedUniversity}
@@ -534,7 +902,7 @@ export default function App() {
               <GossipFeed
                 posts={sortedPosts}
                 onVote={handleVotePost}
-                onOpenPostDetail={(post) => setSelectedPostForDetail(post)}
+                onOpenPostDetail={handleOpenPostDetail}
                 onBookmark={handleBookmark}
                 bookmarkedIds={currentUser.bookmarkedPostIds}
                 onReport={handleReport}
@@ -570,73 +938,35 @@ export default function App() {
                   <span>Trending on Zambian Campuses</span>
                 </h3>
 
-                <div className="space-y-2 text-xs">
-                  <button
-                    onClick={() => {
-                      setSearchQuery('helsb');
-                      setSelectedCategory('all');
-                    }}
-                    className="w-full text-left p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center justify-between"
-                  >
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">
-                      #HELSB_Batch2_Allowance
-                    </span>
-                    <span className="text-[11px] text-slate-400">142 whispers</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setSearchQuery('soweto');
-                      setSelectedCategory('all');
-                    }}
-                    className="w-full text-left p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center justify-between"
-                  >
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">
-                      #UNZA_Soweto_Hall
-                    </span>
-                    <span className="text-[11px] text-slate-400">89 whispers</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setSearchQuery('cbu');
-                      setSelectedCategory('all');
-                    }}
-                    className="w-full text-left p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center justify-between"
-                  >
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">
-                      #CBU_Council_Bench
-                    </span>
-                    <span className="text-[11px] text-slate-400">114 whispers</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setSearchQuery('cavendish');
-                      setSelectedCategory('all');
-                    }}
-                    className="w-full text-left p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center justify-between"
-                  >
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">
-                      #Cavendish_Law_Moot
-                    </span>
-                    <span className="text-[11px] text-slate-400">97 whispers</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setSearchQuery('nipa');
-                      setSelectedCategory('all');
-                    }}
-                    className="w-full text-left p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center justify-between"
-                  >
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">
-                      #NIPA_Dushanbe_Debate
-                    </span>
-                    <span className="text-[11px] text-slate-400">112 whispers</span>
-                  </button>
-                </div>
+                {trendingTags.length === 0 ? (
+                  <div className="py-4 text-center">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                      No trending topics yet. As students post whispers with hashtags (#unza, #cbu, #exams), real trending topics will appear here live!
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2 text-xs">
+                    {trendingTags.map((item) => (
+                      <button
+                        key={item.tag}
+                        onClick={() => {
+                          setSearchQuery(item.tag.replace('#', ''));
+                          setSelectedCategory('all');
+                        }}
+                        className="w-full text-left p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-center justify-between cursor-pointer"
+                      >
+                        <span className="font-semibold text-slate-800 dark:text-slate-200">
+                          {item.tag}
+                        </span>
+                        <span className="text-[11px] text-slate-400">
+                          {item.count} {item.count === 1 ? 'whisper' : 'whispers'}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
+
 
               {/* Quick Campus Encounters Teaser */}
               <div className="p-5 rounded-2xl bg-gradient-to-tr from-pink-500/10 via-rose-500/5 to-amber-500/10 border border-pink-200 dark:border-pink-900/40 space-y-3">
@@ -703,6 +1033,28 @@ export default function App() {
             onSendMessage={handleSendMessage}
           />
         )}
+
+        {/* Tab 6: Zambian Campus Google Map */}
+        {activeTab === 'map' && (
+          <CampusGoogleMap
+            selectedUniversity={selectedUniversity}
+            onSelectUniversity={setSelectedUniversity}
+            onOpenComposerWithVenue={handleOpenComposerWithVenue}
+            onViewEventsForVenue={(venue) => {
+              setActiveTab('calendar');
+              showToast(`Showing events for ${venue}`);
+            }}
+          />
+        )}
+
+        {/* Tab 7: Campus Event Calendar */}
+        {activeTab === 'calendar' && (
+          <CampusEventCalendar
+            selectedUniversity={selectedUniversity}
+            onSelectUniversity={setSelectedUniversity}
+            onViewVenueOnMap={handleViewVenueOnMap}
+          />
+        )}
       </main>
 
       {/* Footer */}
@@ -716,18 +1068,33 @@ export default function App() {
             <span>For all Higher Learning Institutions in Zambia</span>
           </div>
 
-          <div className="flex items-center gap-4 text-xs">
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs">
             <button
               onClick={() => setIsSafetyModalOpen(true)}
-              className="hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
+              className="hover:text-slate-800 dark:hover:text-slate-200 transition-colors cursor-pointer"
             >
               Cyber Safety Rules
             </button>
             <button
               onClick={() => setIsProfileModalOpen(true)}
-              className="hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
+              className="hover:text-slate-800 dark:hover:text-slate-200 transition-colors cursor-pointer"
             >
               My Campus ID
+            </button>
+            <button
+              onClick={() => setIsQrModalOpen(true)}
+              className="hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors flex items-center gap-1.5 text-slate-400 cursor-pointer"
+              title="Campus Social QR Code & WhatsApp Gateway"
+            >
+              <span>Social QR Code</span>
+            </button>
+            <button
+              onClick={() => setIsSupabaseModalOpen(true)}
+              className="hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors flex items-center gap-1.5 text-slate-400 cursor-pointer"
+              title="Campus Cloud Database & Schema Setup"
+            >
+              <Database className="w-3.5 h-3.5 text-emerald-500" />
+              <span>Cloud & SQL Settings</span>
             </button>
             <span>© 2026 ZedWhisper Zambia</span>
           </div>
@@ -739,6 +1106,8 @@ export default function App() {
         isOpen={isComposerOpen}
         onClose={() => setIsComposerOpen(false)}
         currentUser={currentUser}
+        initialVenue={presetVenue?.name}
+        initialUniversity={presetVenue?.university}
         onSubmitPost={handleCreatePost}
       />
 
@@ -770,11 +1139,29 @@ export default function App() {
         currentUser={currentUser}
         onToggleGhostMode={handleToggleGhostMode}
         onClearSession={handleClearSession}
+        onOpenQrModal={() => setIsQrModalOpen(true)}
+      />
+
+      <StudentQrModal
+        isOpen={isQrModalOpen}
+        onClose={() => setIsQrModalOpen(false)}
+        currentUser={currentUser}
+        profiles={profiles}
+        onStartChatWithProfile={handleStartChatWithProfile}
+        onOpenGiftModal={handleOpenGiftModal}
+        onDropCrush={handleSubmitSecretCrush}
       />
 
       <SafetyGuidelinesModal
         isOpen={isSafetyModalOpen}
         onClose={() => setIsSafetyModalOpen(false)}
+      />
+
+      <SupabaseModal
+        isOpen={isSupabaseModalOpen}
+        onClose={() => setIsSupabaseModalOpen(false)}
+        health={supabaseHealth}
+        onRefreshHealth={refreshSupabase}
       />
     </div>
   );

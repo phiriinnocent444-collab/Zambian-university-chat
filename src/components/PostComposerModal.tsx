@@ -20,6 +20,8 @@ interface PostComposerModalProps {
   isOpen: boolean;
   onClose: () => void;
   currentUser: CurrentUser;
+  initialVenue?: string;
+  initialUniversity?: UniversityId;
   onSubmitPost: (newPost: {
     title: string;
     content: string;
@@ -39,20 +41,22 @@ export const PostComposerModal: React.FC<PostComposerModalProps> = ({
   isOpen,
   onClose,
   currentUser,
+  initialVenue,
+  initialUniversity,
   onSubmitPost,
 }) => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [university, setUniversity] = useState<UniversityId>(currentUser.university);
-  const [campusBranch, setCampusBranch] = useState('Great East Road');
-  const [category, setCategory] = useState<PostCategory>('sports');
+  const [university, setUniversity] = useState<UniversityId>(initialUniversity || currentUser.university);
+  const [campusBranch, setCampusBranch] = useState('Main Campus');
+  const [category, setCategory] = useState<PostCategory>('gossip');
   const [isAnonymous, setIsAnonymous] = useState(currentUser.isGhostMode);
   const [isSpoilerTea, setIsSpoilerTea] = useState(false);
   const [eventDate, setEventDate] = useState('');
-  const [eventVenue, setEventVenue] = useState('');
+  const [eventVenue, setEventVenue] = useState(initialVenue || '');
   const [isActivityLive, setIsActivityLive] = useState(false);
   const [customTag, setCustomTag] = useState('');
-  const [tags, setTags] = useState<string[]>(['#campus', '#activity']);
+  const [tags, setTags] = useState<string[]>(['#campus', '#zedwhisper']);
   const [errorWarning, setErrorWarning] = useState<string | null>(null);
 
   if (!isOpen) return null;

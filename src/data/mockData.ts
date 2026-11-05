@@ -377,117 +377,9 @@ export const STUDENT_PROFILES: StudentProfile[] = [
   },
 ];
 
-export const CAMPUS_POLLS: CampusPoll[] = [
-  {
-    id: 'poll-1',
-    question: 'Has your HELSB Meal Allowance dropped into your bank account today?',
-    university: 'all',
-    category: 'Finance & Student Life',
-    options: [
-      { id: 'opt-1', text: 'Yes! ZANACO alert received 🔥', votes: 412 },
-      { id: 'opt-2', text: 'Still waiting anxiously on zero balance 😭', votes: 289 },
-      { id: 'opt-3', text: 'Not on government bursary (Self-sponsored)', votes: 98 },
-    ],
-    totalVotes: 799,
-    closingDate: 'Closes in 2 days',
-  },
-  {
-    id: 'poll-2',
-    question: 'Which institution in Zambia has the toughest first-year exams?',
-    university: 'all',
-    category: 'Academic Rivalry',
-    options: [
-      { id: 'opt-4', text: 'UNZA (Natural Sciences NS1010/PHY1010)', votes: 531 },
-      { id: 'opt-5', text: 'CBU (Engineering Calculus & Statics)', votes: 344 },
-      { id: 'opt-nipa', text: 'NIPA (Public Administration & Legal Frameworks)', votes: 215 },
-      { id: 'opt-6', text: 'LMMU (Pre-Med Anatomy & Physiology)', votes: 198 },
-      { id: 'opt-7', text: 'Cavendish (Legal Method & Constitutional Law)', votes: 87 },
-    ],
-    totalVotes: 1375,
-    closingDate: 'Closes in 4 days',
-  },
-  {
-    id: 'poll-3',
-    question: 'Best late-night food spot around Lusaka universities:',
-    university: 'unza',
-    category: 'Food & Hangouts',
-    options: [
-      { id: 'opt-8', text: 'Hungry Lion Manda Hill (24/7 vibe)', votes: 310 },
-      { id: 'opt-9', text: 'Monk Square Fritters & Sausages', votes: 245 },
-      { id: 'opt-10', text: 'Kalingalinga Choma Grills & Nshima', votes: 190 },
-      { id: 'opt-11', text: 'EastPark Food Court', votes: 115 },
-    ],
-    totalVotes: 860,
-    closingDate: 'Closes in 3 days',
-  },
-];
+export const CAMPUS_POLLS: CampusPoll[] = [];
 
-export const INITIAL_CONVERSATIONS: ChatConversation[] = [
-  {
-    id: 'conv-1',
-    partnerId: 'stud-1',
-    partnerName: 'Natasha Mwamba',
-    partnerAlias: 'Tasha_UNZA',
-    partnerUniversity: 'unza',
-    partnerAvatarSeed: 'Natasha',
-    lastMessage: 'Haha yes! Meet me at Goma Lakes after the NS lecture.',
-    lastTimestamp: '12 min ago',
-    unreadCount: 1,
-    isIncognito: false,
-    messages: [
-      {
-        id: 'm1',
-        conversationId: 'conv-1',
-        senderId: 'stud-1',
-        senderAlias: 'Tasha_UNZA',
-        isSenderGhost: false,
-        text: 'Hey! Saw your comment on the Soweto hall guitarist post 😂',
-        timestamp: '25 min ago',
-      },
-      {
-        id: 'm2',
-        conversationId: 'conv-1',
-        senderId: 'user-me',
-        senderAlias: 'You',
-        isSenderGhost: false,
-        text: 'He literally woke up the entire block! Do you have anatomy notes for block 2?',
-        timestamp: '18 min ago',
-      },
-      {
-        id: 'm3',
-        conversationId: 'conv-1',
-        senderId: 'stud-1',
-        senderAlias: 'Tasha_UNZA',
-        isSenderGhost: false,
-        text: 'Haha yes! Meet me at Goma Lakes after the NS lecture.',
-        timestamp: '12 min ago',
-      },
-    ],
-  },
-  {
-    id: 'conv-2',
-    partnerId: 'ghost-user-99',
-    partnerName: 'Anonymous Whisperer',
-    partnerAlias: 'Kitwe Ghost #332',
-    partnerUniversity: 'cbu',
-    partnerAvatarSeed: 'Ghost332',
-    lastMessage: 'Did you hear the tea about the Jambo drive lab?',
-    lastTimestamp: '1 hour ago',
-    unreadCount: 0,
-    isIncognito: true,
-    messages: [
-      {
-        id: 'm4',
-        conversationId: 'conv-2',
-        senderId: 'ghost-user-99',
-        senderAlias: 'Kitwe Ghost #332',
-        isSenderGhost: true,
-        text: 'Did you hear the tea about the Jambo drive lab?',
-        timestamp: '1 hour ago',
-      },
-    ],
-  },
-];
+export const INITIAL_CONVERSATIONS: ChatConversation[] = [];
 
 export const CURRENT_USER: CurrentUser = {
   id: 'user-me',
@@ -498,7 +390,8 @@ export const CURRENT_USER: CurrentUser = {
   program: 'BSc Computer Science & Information Systems',
   year: 3,
   isGhostMode: false,
-  treatsSentCount: 3,
-  secretCrushesSubmitted: ['@natasha_unza', 'tasha_unza'],
-  bookmarkedPostIds: ['post-1', 'post-3'],
+  treatsSentCount: 0,
+  secretCrushesSubmitted: [],
+  bookmarkedPostIds: [],
 };
+

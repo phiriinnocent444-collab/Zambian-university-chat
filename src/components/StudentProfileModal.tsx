@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { CurrentUser } from '../types';
 import { UNIVERSITIES } from '../data/mockData';
 import {
@@ -14,6 +14,8 @@ import {
   Smartphone,
   Trash2,
   Sparkles,
+  MessageCircle,
+  ExternalLink,
 } from 'lucide-react';
 
 interface StudentProfileModalProps {
@@ -33,9 +35,28 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
   onClearSession,
   onOpenQrModal,
 }) => {
+  const [peerPhone, setPeerPhone] = useState('');
+  const [showPhoneInput, setShowPhoneInput] = useState(false);
+
   if (!isOpen) return null;
 
   const currentUni = UNIVERSITIES.find((u) => u.id === currentUser.university) || UNIVERSITIES[1];
+
+  const getWhatsAppRelayUrl = (inputNumber: string) => {
+    let clean = inputNumber.replace(/[^0-9]/g, '');
+    if (clean.startsWith('0') && clean.length === 10) {
+      clean = '260' + clean.slice(1);
+    }
+    const token = `ZW-${currentUser.university.toUpperCase()}-${currentUser.id.slice(-4)}`;
+    const text = encodeURIComponent(
+      `🔒 ZedWhisper Campus Secure Match\n` +
+      `Hello! Connecting with ${currentUser.alias} from ${currentUni.shortName}.\n` +
+      `Verification Token: [${token}]\n` +
+      `Identity Shield: Protected by ZedWhisper Zambia Relay.\n` +
+      `Let's chat!`
+    );
+    return clean ? `https://wa.me/${clean}?text=${text}` : `https://wa.me/?text=${text}`;
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs">
@@ -130,6 +151,59 @@ export const StudentProfileModal: React.FC<StudentProfileModalProps> = ({
             </span>
           </button>
         )}
+
+        {/* Dedicated WhatsApp Direct Chat Button (wa.me) */}
+        <div className="p-3.5 rounded-xl border border-emerald-200 dark:border-emerald-800/80 bg-emerald-50/50 dark:bg-emerald-950/20 space-y-2.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center">
+                <MessageCircle className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="text-xs font-bold text-slate-900 dark:text-white">
+                  WhatsApp Direct Relay (wa.me)
+                </h4>
+                <p className="text-[11px] text-slate-500">
+                  Chat privately with peers without exposing details to public feed
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowPhoneInput(!showPhoneInput)}
+              className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 hover:underline cursor-pointer"
+            >
+              {showPhoneInput ? 'Hide Number' : 'Peer Number'}
+            </button>
+          </div>
+
+          {showPhoneInput && (
+            <div className="flex items-center gap-2">
+              <input
+                type="tel"
+                value={peerPhone}
+                onChange={(e) => setPeerPhone(e.target.value)}
+                placeholder="Peer's number (e.g. 097xxxxxxx or 096...)"
+                className="flex-1 px-3 py-1.5 text-xs rounded-lg border border-emerald-300 dark:border-emerald-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
+          )}
+
+          <a
+            href={getWhatsAppRelayUrl(peerPhone)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition-all cursor-pointer"
+          >
+            <MessageCircle className="w-4 h-4" />
+            <span>
+              {peerPhone.trim() ? `Chat on WhatsApp with ${peerPhone}` : 'Trigger Protected wa.me Chat'}
+            </span>
+            <ExternalLink className="w-3.5 h-3.5 opacity-80" />
+          </a>
+        </div>
+
 
         {/* Student Activity & Karma Stats */}
         <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 space-y-3">

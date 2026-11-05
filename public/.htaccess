@@ -1,0 +1,35 @@
+# ====================================================================
+# InfinityFree / Apache .htaccess for ZedWhisper (React SPA Router)
+# Place this in your InfinityFree htdocs/ folder
+# ====================================================================
+
+Options -MultiViews
+RewriteEngine On
+RewriteBase /
+
+# Ensure HTTPS redirect on InfinityFree
+RewriteCond %{HTTP:X-Forwarded-Proto} !https
+RewriteCond %{HTTPS} off
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# Do not rewrite if file or directory exists
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Redirect all requests to index.html for React SPA Router
+RewriteRule ^ index.html [QSA,L]
+
+# Enable GZIP compression for fast loading on Zambian mobile networks
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript application/json
+</IfModule>
+
+# Browser Caching Headers
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType image/svg+xml "access plus 1 month"
+  ExpiresByType image/png "access plus 1 month"
+  ExpiresByType image/jpeg "access plus 1 month"
+  ExpiresByType text/css "access plus 1 year"
+  ExpiresByType application/javascript "access plus 1 year"
+</IfModule>

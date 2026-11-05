@@ -70,7 +70,9 @@ export interface GossipPost {
   comments: PostComment[];
   timestamp: string;
   tags: string[];
+  is_saved?: boolean;
 }
+
 
 export interface StudentProfile {
   id: string;

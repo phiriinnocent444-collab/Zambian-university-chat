@@ -156,101 +156,122 @@ export const CampusPolls: React.FC<CampusPollsProps> = ({
 
       {/* Polls List */}
       <div className="space-y-4">
-        {polls.map((poll) => {
-          const hasVoted = Boolean(poll.userVotedOptionId);
-
-          return (
-            <div
-              key={poll.id}
-              className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4"
+        {polls.length === 0 ? (
+          <div className="p-12 text-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3">
+            <div className="w-12 h-12 rounded-2xl bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto">
+              <Vote className="w-6 h-6" />
+            </div>
+            <h3 className="font-bold text-slate-900 dark:text-white text-base">
+              No Campus Polls Active Yet
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+              Campus polls are launched directly by real students. Be the first to start a debate on HELSB allowances, exams, or hostel life!
+            </p>
+            <button
+              onClick={() => setIsCreating(true)}
+              className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-sm transition-all cursor-pointer"
             >
-              {/* Poll Metadata */}
-              <div className="flex items-center justify-between text-xs text-slate-500">
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-amber-600 dark:text-amber-400">
-                    {poll.category}
-                  </span>
-                  <span>·</span>
-                  <span className="flex items-center gap-1">
-                    <Clock className="w-3.5 h-3.5" />
-                    <span>{poll.closingDate}</span>
+              <Plus className="w-4 h-4" />
+              <span>Launch First Campus Poll</span>
+            </button>
+          </div>
+        ) : (
+          polls.map((poll) => {
+            const hasVoted = Boolean(poll.userVotedOptionId);
+
+            return (
+              <div
+                key={poll.id}
+                className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4"
+              >
+                {/* Poll Metadata */}
+                <div className="flex items-center justify-between text-xs text-slate-500">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-amber-600 dark:text-amber-400">
+                      {poll.category}
+                    </span>
+                    <span>·</span>
+                    <span className="flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5" />
+                      <span>{poll.closingDate}</span>
+                    </span>
+                  </div>
+                  <span className="tabular-nums font-medium text-slate-700 dark:text-slate-300">
+                    {poll.totalVotes} votes cast
                   </span>
                 </div>
-                <span className="tabular-nums font-medium text-slate-700 dark:text-slate-300">
-                  {poll.totalVotes} votes cast
-                </span>
-              </div>
 
-              {/* Question */}
-              <h3 className="text-base font-bold text-slate-900 dark:text-white leading-snug">
-                {poll.question}
-              </h3>
+                {/* Question */}
+                <h3 className="text-base font-bold text-slate-900 dark:text-white leading-snug">
+                  {poll.question}
+                </h3>
 
-              {/* Options */}
-              <div className="space-y-2.5">
-                {poll.options.map((option) => {
-                  const percentage =
-                    poll.totalVotes > 0 ? Math.round((option.votes / poll.totalVotes) * 100) : 0;
-                  const isSelected = poll.userVotedOptionId === option.id;
+                {/* Options */}
+                <div className="space-y-2.5">
+                  {poll.options.map((option) => {
+                    const percentage =
+                      poll.totalVotes > 0 ? Math.round((option.votes / poll.totalVotes) * 100) : 0;
+                    const isSelected = poll.userVotedOptionId === option.id;
 
-                  return (
-                    <button
-                      key={option.id}
-                      onClick={() => onVotePoll(poll.id, option.id)}
-                      className={`w-full text-left p-3 rounded-xl border relative overflow-hidden transition-all cursor-pointer ${
-                        isSelected
-                          ? 'border-amber-500 bg-amber-50/40 dark:bg-amber-950/20 font-semibold'
-                          : 'border-slate-200 dark:border-slate-700/80 hover:border-slate-300 dark:hover:border-slate-600 bg-white dark:bg-slate-800/60'
-                      }`}
-                    >
-                      {/* Animated Progress Bar fill */}
-                      {hasVoted && (
-                        <div
-                          className="absolute inset-y-0 left-0 bg-amber-500/15 dark:bg-amber-500/25 transition-all duration-500 pointer-events-none"
-                          style={{ width: `${percentage}%` }}
-                        />
-                      )}
-
-                      <div className="relative flex items-center justify-between gap-3 text-xs">
-                        <div className="flex items-center gap-2 flex-1">
-                          <div
-                            className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
-                              isSelected
-                                ? 'border-amber-600 bg-amber-600 text-white'
-                                : 'border-slate-300'
-                            }`}
-                          >
-                            {isSelected && <CheckCircle2 className="w-3.5 h-3.5" />}
-                          </div>
-                          <span className="text-slate-800 dark:text-slate-200 font-medium">
-                            {option.text}
-                          </span>
-                        </div>
-
+                    return (
+                      <button
+                        key={option.id}
+                        onClick={() => onVotePoll(poll.id, option.id)}
+                        className={`w-full text-left p-3 rounded-xl border relative overflow-hidden transition-all cursor-pointer ${
+                          isSelected
+                            ? 'border-amber-500 bg-amber-50/40 dark:bg-amber-950/20 font-semibold'
+                            : 'border-slate-200 dark:border-slate-700/80 hover:border-slate-300 dark:hover:border-slate-600 bg-white dark:bg-slate-800/60'
+                        }`}
+                      >
+                        {/* Animated Progress Bar fill */}
                         {hasVoted && (
-                          <div className="flex items-center gap-2 tabular-nums shrink-0">
-                            <span className="font-bold text-slate-900 dark:text-white">
-                              {percentage}%
-                            </span>
-                            <span className="text-[11px] text-slate-400">
-                              ({option.votes})
+                          <div
+                            className="absolute inset-y-0 left-0 bg-amber-500/15 dark:bg-amber-500/25 transition-all duration-500 pointer-events-none"
+                            style={{ width: `${percentage}%` }}
+                          />
+                        )}
+
+                        <div className="relative flex items-center justify-between gap-3 text-xs">
+                          <div className="flex items-center gap-2 flex-1">
+                            <div
+                              className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
+                                isSelected
+                                  ? 'border-amber-600 bg-amber-600 text-white'
+                                  : 'border-slate-300'
+                              }`}
+                            >
+                              {isSelected && <CheckCircle2 className="w-3.5 h-3.5" />}
+                            </div>
+                            <span className="text-slate-800 dark:text-slate-200 font-medium">
+                              {option.text}
                             </span>
                           </div>
-                        )}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
 
-              {!hasVoted && (
-                <p className="text-[11px] text-slate-400 italic">
-                  Tap an option to cast your anonymous vote and reveal live campus percentages.
-                </p>
-              )}
-            </div>
-          );
-        })}
+                          {hasVoted && (
+                            <div className="flex items-center gap-2 tabular-nums shrink-0">
+                              <span className="font-bold text-slate-900 dark:text-white">
+                                {percentage}%
+                              </span>
+                              <span className="text-[11px] text-slate-400">
+                                ({option.votes})
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {!hasVoted && (
+                  <p className="text-[11px] text-slate-400 italic">
+                    Tap an option to cast your anonymous vote and reveal live campus percentages.
+                  </p>
+                )}
+              </div>
+            );
+          })
+        )}
       </div>
     </div>
   );

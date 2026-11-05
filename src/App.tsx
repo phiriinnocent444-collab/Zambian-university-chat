@@ -52,13 +52,15 @@ import {
   broadcastDirectMessage,
   SupabaseHealth,
 } from './lib/supabase';
-import { Flame, ShieldCheck, Heart, Sparkles, Check, Bell, Database } from 'lucide-react';
+import { Flame, ShieldCheck, Heart, Sparkles, Check, Bell, Database, Bookmark, MessageSquare } from 'lucide-react';
+import { CAMPUS_EVENTS } from './data/campusLocationsAndEvents';
 
 export default function App() {
   // Navigation State
   const [activeTab, setActiveTab] = useState<
-    'feed' | 'dating' | 'secret_crush' | 'polls' | 'messages' | 'map' | 'calendar'
+    'feed' | 'dating' | 'secret_crush' | 'polls' | 'messages' | 'map' | 'calendar' | 'saved'
   >('feed');
+
 
   // University & Category Filter States
   const [selectedUniversity, setSelectedUniversity] = useState<UniversityId>('all');
@@ -98,18 +100,46 @@ export default function App() {
 
   const [polls, setPolls] = useState<CampusPoll[]>(() => {
     const saved = localStorage.getItem('zedwhisper_polls');
-    return saved ? JSON.parse(saved) : CAMPUS_POLLS;
+    if (saved) {
+      try {
+        const parsed: CampusPoll[] = JSON.parse(saved);
+        return parsed.filter((p) => !['poll-1', 'poll-2', 'poll-3'].includes(p.id));
+      } catch {
+        return [];
+      }
+    }
+    return CAMPUS_POLLS;
   });
 
   const [conversations, setConversations] = useState<ChatConversation[]>(() => {
     const saved = localStorage.getItem('zedwhisper_convs');
-    return saved ? JSON.parse(saved) : INITIAL_CONVERSATIONS;
+    if (saved) {
+      try {
+        const parsed: ChatConversation[] = JSON.parse(saved);
+        return parsed.filter((c) => !['conv-1', 'conv-2'].includes(c.id));
+      } catch {
+        return [];
+      }
+    }
+    return INITIAL_CONVERSATIONS;
   });
 
   const [currentUser, setCurrentUser] = useState<CurrentUser>(() => {
     const saved = localStorage.getItem('zedwhisper_user');
-    return saved ? JSON.parse(saved) : CURRENT_USER;
+    if (saved) {
+      try {
+        const parsed: CurrentUser = JSON.parse(saved);
+        return {
+          ...parsed,
+          bookmarkedPostIds: (parsed.bookmarkedPostIds || []).filter((id) => !['post-1', 'post-3'].includes(id)),
+        };
+      } catch {
+        return CURRENT_USER;
+      }
+    }
+    return CURRENT_USER;
   });
+
 
   // Modals & Panels State
   const [isComposerOpen, setIsComposerOpen] = useState(false);
@@ -857,7 +887,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Strict 3-zone Navbar */}
+      {/* Strict 3-zone Navbar with Global Search & Saved Whispers */}
       <Navbar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -871,17 +901,30 @@ export default function App() {
         onToggleGhostMode={handleToggleGhostMode}
         onOpenQrModal={() => setIsQrModalOpen(true)}
         unreadCount={unreadCount}
+        savedCount={currentUser.bookmarkedPostIds.length}
+        posts={posts}
+        profiles={profiles}
+        events={CAMPUS_EVENTS}
+        onSelectPost={(post) => setSelectedPostForDetail(post)}
+        onSelectProfile={(profile) => {
+          setTargetProfileForGift(profile);
+          setIsGiftsModalOpen(true);
+        }}
+        onSelectEvent={(evt) => {
+          setActiveTab('calendar');
+        }}
         onOpenSupabase={() => setIsSupabaseModalOpen(true)}
         isSupabaseReady={supabaseHealth.tableReady}
       />
 
-      {/* University Campus Hub Selector (Available in Buzz, Encounters, Map & Calendar) */}
-      {(activeTab === 'feed' || activeTab === 'dating' || activeTab === 'map' || activeTab === 'calendar') && (
+      {/* University Campus Hub Selector (Available in Buzz, Encounters, Map, Calendar & Saved) */}
+      {(activeTab === 'feed' || activeTab === 'dating' || activeTab === 'map' || activeTab === 'calendar' || activeTab === 'saved') && (
         <UniversityFilterBar
           selectedUniversity={selectedUniversity}
           onSelectUniversity={setSelectedUniversity}
         />
       )}
+
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
@@ -1055,7 +1098,71 @@ export default function App() {
             onViewVenueOnMap={handleViewVenueOnMap}
           />
         )}
+
+        {/* Tab 8: Dedicated Saved Whispers View */}
+        {activeTab === 'saved' && (
+          <div className="max-w-4xl mx-auto space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-200 dark:border-slate-800">
+              <div>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60 text-xs font-semibold mb-1.5">
+                  <Bookmark className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+                  <span>Private Bookmarks</span>
+                </div>
+                <h2 className="text-xl font-display font-bold text-slate-900 dark:text-white">
+                  Saved Campus Whispers
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {currentUser.bookmarkedPostIds.length} bookmarked {currentUser.bookmarkedPostIds.length === 1 ? 'post' : 'posts'} stored privately for you
+                </p>
+              </div>
+
+              <button
+                onClick={() => setActiveTab('feed')}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 transition-colors cursor-pointer self-start sm:self-auto"
+              >
+                <MessageSquare className="w-4 h-4" />
+                <span>Back to Campus Feed</span>
+              </button>
+            </div>
+
+            {/* Saved Posts List or Empty State */}
+            {posts.filter((p) => (currentUser.bookmarkedPostIds.includes(p.id) || p.is_saved === true) && (selectedUniversity === 'all' || p.university === selectedUniversity)).length === 0 ? (
+              <div className="py-16 text-center bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 p-8 shadow-xs">
+                <div className="w-14 h-14 rounded-2xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto mb-4 border border-amber-200 dark:border-amber-800/60">
+                  <Bookmark className="w-7 h-7" />
+                </div>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">
+                  No Saved Whispers Found
+                </h3>
+                <p className="text-sm text-slate-600 dark:text-slate-300 max-w-md mx-auto mb-2">
+                  Whenever you come across valuable campus updates, exam past papers, hostel notices, or spicy gossip from the feed, click the Bookmark icon on the card to save it here for quick access.
+                </p>
+                <p className="text-xs text-slate-400 max-w-sm mx-auto mb-6">
+                  Items you bookmark are private and never exposed to other students or public feeds.
+                </p>
+                <button
+                  onClick={() => setActiveTab('feed')}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-md transition-all cursor-pointer"
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  <span>Browse Campus Feed</span>
+                </button>
+              </div>
+            ) : (
+              <GossipFeed
+                posts={posts.filter((p) => (currentUser.bookmarkedPostIds.includes(p.id) || p.is_saved === true) && (selectedUniversity === 'all' || p.university === selectedUniversity))}
+                onVote={handleVotePost}
+                onOpenPostDetail={handleOpenPostDetail}
+                onBookmark={handleBookmark}
+                bookmarkedIds={currentUser.bookmarkedPostIds}
+                onReport={handleReport}
+                onOpenComposer={() => setIsComposerOpen(true)}
+              />
+            )}
+          </div>
+        )}
       </main>
+
 
       {/* Footer */}
       <footer className="border-t border-slate-200 dark:border-slate-800 py-6 bg-white dark:bg-slate-900 text-xs text-slate-500 transition-colors">
